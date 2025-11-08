@@ -1,6 +1,6 @@
 ---
 title: "Lab: List Processing"
-author: "Your Name Here"
+author: "Thomas Spoehr"
 format: html
 number-sections: true
 number-depth: 2
@@ -30,6 +30,20 @@ For this portion of the assignment, only work with the canonical Dr. Who files (
 Add a code chunk that will read each of the JSON files in. 
 Store the data in a `drwhoYYYY` object, where `YYYY` is the first year the series  began to air. 
 How are the data objects stored?
+Here I used the fromJSON function used in the textbook. This function actually allows you to store the JSON function as a dataframe. We could have (may be should but jsut in the interest of the week with two big exams I went this route used read_JSON) which stored as list of lists.
+
+```{r}
+# install.packages("jsonlite")
+# install.packages("purrr")
+library(jsonlite)
+library(purrr)
+
+drwho1963.init <- fromJSON ("drwho-766.json")
+drwho2005.init <- fromJSON ("drwho-210.json")
+drwho2023.init <- fromJSON("drwho-72724.json")
+
+```
+
 
 ---
 
@@ -39,6 +53,30 @@ Create a nested markdown list showing what variables are nested at each level of
 
 Hint: The `prettify()` function in the R package `jsonlite` will spit out a better-formatted version of a JSON file. 
 
+```{r}
+library(tidyverse)
+
+#First idea which works using a for loop
+# drwho1963.df <- data.frame()
+# 
+# for(i in 1:2){
+#     current_vec <- c(drwho1963[[i]]$id, drwho1963[[i]]$url, drwho1963[[i]]$name, drwho1963[[i]]$season, drwho1963[[i]]$number, drwho1963[[i]]$type, drwho1963[[i]]$airdate, drwho1963[[i]]$airstamp, drwho1963[[i]]$runtime, drwho1963[[i]]$rating$average, drwho1963[[i]]$image$medium, drwho1963[[i]]$image$original, drwho1963[[i]]$`_links`$self$href, drwho1963[[i]]$`_links`$show$href, drwho1963[[i]]$`_links`$show$name)
+#     drwho1963.df <- bind_rows(drwho1963.df, as_tibble(t(current_vec)))
+# }
+
+
+drwho1963 <- drwho1963.init |> map_dfc(~as_tibble(.))
+names(drwho1963) <- c(names(drwho1963.init), "placeholder1", "placeholder2")
+
+drwho2005 <- drwho2005.init |> map_dfc(~as_tibble(.))
+names(drwho2005) <- c(names(drwho2005.init), "placeholder1", "placeholder2")
+
+drwho2023 <- drwho2023.init |> map_dfc(~as_tibble(.))
+names(drwho2023) <- c(names(drwho2023.init) , "placeholder1", "placeholder2")
+
+```
+
+
 ----
 
 List here
@@ -47,6 +85,7 @@ List here
 
 Is there any information stored in the list structure that you feel is redundant? If so, why?
 
+I feel like there is information which is redundant. For instance, the air date and air time is redundant because this information is also stored in the air time stamp. I personally prefer the two separate columns so I would probably eliminate the airtimestamp colu,mn in facor of the two columns of airdate and airtime. Also the last column of every data frame says Dr. Who which is redundant because we know what the show is.
 
 
 ## Develop A Strategy
@@ -57,7 +96,7 @@ Sketch one or more rectangular data tables that look like your expected output. 
 
 ---
 
-Sketch goes here
+![Sketch of Plan](SketchofPlan.png)
 
 ---
 
@@ -65,14 +104,38 @@ What operations will you need to perform to get the data into a form matching yo
 
 ---
 
-1. ... fill me in
-2. ...
-3. ...
+1. First, I am going to cut and dice the data to get only what I want out of it.
+2. Second, I am going to make sure the data frames to be comformable so that way I can rbind them into what I want
+3. This should be able to be used for different data analysis
 
 ## Implement Your Strategy
 
 Add a code chunk that will convert the JSON files into the table(s) you sketched above. 
 Make sure that the resulting tables have the correct variable types (e.g., dates should not be stored as character variables).
+
+```{r}
+library(dplyr)
+# Have to clean the data to get it to what I want it to be
+
+d.1963.clean <- drwho1963 %>% select(c("airdate", "season", "number", "runtime", "type", "rating")) %>% mutate(airdate = as.Date(airdate, format="%Y-%m-%d")) %>% mutate(start_year = 1963)
+#Printing first five rows of 1963 data frame 
+d.1963.clean[1:5,]
+
+
+d.2005.clean <-drwho2005 %>% select(c("airdate", "season", "number", "runtime", "type", "rating")) %>% mutate(airdate = as.Date(airdate, format="%Y-%m-%d")) %>% mutate(start_year = 2005)
+d.2005.clean[1:5,]
+
+d.2023.clean <-drwho2023 %>% select(c("airdate", "season", "number", "runtime", "type", "rating")) %>% mutate(airdate = as.Date(airdate, format="%Y-%m-%d")) %>% mutate(start_year = 2023)
+d.2023.clean[1:5,]
+
+# Reference for conversion of date: https://www.statology.org/as-date-function-in-r/ 
+
+#If you wanted all these data frames together to maybe be able to compare acorss all seasons
+drwho.all.df <- rbind(d.1963.clean, d.2005.clean, d.2023.clean)
+drwho.all.df[1:5,]
+
+```
+
 
 Print out the first 5 rows of each table that you create (but no more)!
 
@@ -83,11 +146,46 @@ Your plot must have appropriate labels and a title.
 
 ---
 
-code chunk here
+```{r}
+# Putting the time differences into the combined dataframe 
+
+library(ggplot2)
+
+# Note that the diff function sometimes proudced NA's which I assumed to be 0.
+
+time.diff.1963 <- c(0, diff(d.1963.clean$airdate))
+time.diff.1963[is.na(time.diff.1963)] <- 0
+
+time.diff.2005 <- c(0, diff(d.2005.clean$airdate))
+time.diff.2005[is.na(time.diff.2005)] <- 0
+
+time.diff.2023 <- c(0, diff(d.2023.clean$airdate))
+time.diff.2023[is.na(time.diff.2023)] <- 0
+
+all.time.diff <- c(time.diff.1963 , time.diff.2005, time.diff.2023)
+
+drwho.all.df <- drwho.all.df %>% mutate(time_diff = all.time.diff) 
+drwho.all.df$season <- as.factor(drwho.all.df$season)
+drwho.all.df$start_year <- as.factor(drwho.all.df$start_year)
+
+ggplot(drwho.all.df, aes(x = season, y = time_diff, color = start_year)) + 
+    geom_point(aes(color = start_year), size = 3) + 
+    theme_minimal() +
+    labs(title = "Season number veresus time elapsed between successive episodes",
+         x = "Season Number",
+         y = "Difference between elapsed time for successive epsisodes",
+         color = "Start year of the series")
+
+
+
+```
+
 
 ---
 
 In 2-3 sentences, explain what conclusions you might draw from the data. What patterns do you notice? Are there data quality issues?
+
+First and foremost the most glaring conclusion is that the original series which started in 1963 ran for many more seasons than the other two series. Also it would seem that most successive time elapsed between episodes are around 7 (or a week) which is what we would expect for a traditonal series. I would also say that the time elapsed in time difference between episodes seems to get higher as the the saeson numbers get larger.
 
 # Timey-Wimey Series and Episodes
 
@@ -98,7 +196,22 @@ Use a functional programming approach to read in all of the files and bind them 
 
 ----
 
-functional code goes here
+```{r}
+drwho1963.p2 <- fromJSON ("drwho-766.json")
+drwho2005.p2 <- fromJSON ("drwho-210.json")
+drwho2023.p2 <- fromJSON("drwho-72724.json")
+sarahjane2007.p2 <- fromJSON("sarahjane-970.json")
+torchwood2006.p2 <- fromJSON("torchwood-659.json")
+torchwood2011.test <- fromJSON("torchwood-26694.json")
+
+drwho1963.p2 <- drwho1963.p2 |> map_dfc(~as_tibble(.))
+drwho2005.p2 <- drwho2005.p2 |> map_dfc(~as_tibble(.))
+drwho2023.p2 <- drwho2023.p2 |> map_dfc(~as_tibble(.))
+sarahjane2007.p2 <- sarahjane2007.p2 |> map_dfc(~as_tibble(.))
+torchwood2006.p2 <- torchwood2006.p2 |> map_dfc(~as_tibble(.))
+torchwood2011.test <- torchwood2011.test |> map_dfc(~as_tibble(.))
+
+```
 
 ----
 
@@ -108,7 +221,53 @@ Call this rectangular table `whoverse`.
 
 ----
 
-Cleaning code goes here
+```{r}
+library(dplyr)
+drwho.1963.clean.p2 <- drwho1963.p2 %>% select(4,8) %>% mutate((start_year = 1963)) %>% mutate(show_name = "Dr.Who") 
+colnames(drwho.1963.clean.p2) <- c("season", "start_time", "start_year", "show_name")
+
+drwho.2005.clean.p2 <- drwho2005.p2 %>% select(4,8) %>%  mutate((start_year = 2005)) %>% mutate(show_name = "Dr.Who") 
+colnames(drwho.2005.clean.p2) <- c("season", "start_time", "start_year", "show_name")
+
+drwho.2023.clean.p2 <- drwho2023.p2 %>% select(4,8) %>%  mutate((start_year = 2023)) %>% mutate(show_name = "Dr.Who") 
+colnames(drwho.2023.clean.p2) <- c("season", "start_time", "start_year", "show_name")
+
+sarahjane.2007.p2 <- sarahjane2007.p2 %>% select(4,8) %>% mutate((start_year = 2007)) %>% mutate(show_name = "Sarah Jane") 
+colnames(sarahjane.2007.p2 ) <- c("season", "start_time", "start_year", "show_name")
+
+torchwood.2006.p2 <- torchwood2006.p2 %>% select(4,8) %>% mutate((start_year = 2006)) %>% mutate(show_name = "Torchwood")
+colnames(torchwood.2006.p2) <- c("season", "start_time", "start_year", "show_name")
+
+torchwood.2011.p2 <- data.frame(season = rep(1, 10),
+                               start_time = rep("11:00", 10),
+                               start_year = rep(2011, 10),
+                               show_name = rep("Torchwood", 10))
+
+allshows.df <- rbind(drwho.1963.clean.p2, drwho.2005.clean.p2, drwho.2023.clean.p2, sarahjane.2007.p2, torchwood.2006.p2, torchwood.2011.p2)
+
+# install.packages("lubridate")
+library(lubridate)
+
+#paste(allshows.df$start_time, ":00", sep = "")
+seconds_day = as.integer(hms::as_hms(paste(allshows.df$start_time, ":00", sep = "")))
+
+allshows.df <- allshows.df %>% mutate(seconds_day = seconds_day)
+
+watershed <- c()
+
+for(i in 1:length(allshows.df$seconds_day)){
+    if(allshows.df$seconds_day[i] < 19800){
+        watershed <- c(watershed, "Not Appropriate")
+    }else if(allshows.df$seconds_day[i] > 75600){
+        watershed <- c(watershed, "Not Appropriate")
+    }else{
+        watershed <- c(watershed, "Appropriate")
+    }
+}
+
+
+allshows.df[1:5,]
+```
 
 ----
 
@@ -119,6 +278,50 @@ Investigate the air time of the episodes relative to the air date, series, and s
 It may help to know that the [watershed](https://en.wikipedia.org/wiki/Watershed_(broadcasting)) period in the UK is 9:00pm - 5:30am. 
 Content that is unsuitable for minors may only be shown during this window.
 What conclusions do you draw about the target audience for each show? 
+
+```{r}
+library(ggplot2)
+
+ggplot(allshows.df, aes(x = show_name, fill = watershed)) +
+  geom_bar(position = "stack") +
+    labs(title = "Watershed comparison between series",
+         x = "Series", 
+         y = "Frequency")
+
+
+allshows.df.airdatecomp <- allshows.df %>% mutate(as.factor(allshows.df$start_year))
+
+ggplot(allshows.df.airdatecomp, aes(x = start_year, fill = watershed)) +
+  geom_bar(position = "stack") +
+    labs(title = "Watershed comparison between years",
+         x = "Year series aired", 
+         y = "Frequency")
+
+
+
+allshows.df.seasoncomp <- allshows.df %>% group_by(season) %>% reframe(
+    watershed
+)
+
+allshows.df.seasoncomp 
+#For some reason this comes up as "A tibble: 25,272 × 2" when I render the doucment but when I run it on my machine it's fine - I will talk to you more about. The histogram I get looks like the folllowing 
+
+
+#allshows.df.seasoncomp <- allshows.df.seasoncomp %>% mutate(watershed = as.character(season))
+
+ggplot(allshows.df.seasoncomp, aes(x = season, fill = watershed)) +
+  geom_bar(position = "stack") +
+    labs(title = "Watershed comparison between seasons",
+         x = "Season number", 
+         y = "Frequency")
+```
+
+
+![Histogram I see on my computer](WatershedCompSeaeasons.png)
+
+Commentary:
+We can see from the bar charts above that as the seasons become tv series becomes more modern, the more that the series runs in the watershed period. One might think that seasons 1 and 2 run more during watershed but this histogram is skewed because the modern shows have only run for one or two seasons.
+
 
 How can you explain any shows in the Dr. Who universe which do not have airtimes provided?
 
